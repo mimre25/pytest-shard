@@ -36,7 +36,7 @@ def test_sha256hash_deterministic(s):
     x = pytest_shard.sha256hash(s)
     y = pytest_shard.sha256hash(s)
     assert x == y
-    assert type(x) == int
+    assert isinstance(x, int)
 
 
 @hypothesis.given(strategies.text(), strategies.text())
