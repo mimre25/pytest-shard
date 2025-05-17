@@ -3,17 +3,17 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pytest-shard"
+name = "pytest-shard-fork"
 dynamic = ["version"]
 description = "Shard tests to support parallelism across multiple machines"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "Adam Gleave", email = "adam@example.com"}
+    {name = "Adam Gleave"}
 ]
 maintainers = [
-    {name = "Adam Gleave", email = "adam@example.com"}
+    {name = "Martin Imre", email = "martinimre25@gmail.com"}
 ]
 keywords = ["pytest", "testing", "shard", "parallel"]
 classifiers = [
@@ -37,9 +37,9 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/AdamGleave/pytest-shard"
-"Bug Tracker" = "https://github.com/AdamGleave/pytest-shard/issues"
-"Source Code" = "https://github.com/AdamGleave/pytest-shard"
+"Homepage" = "https://github.com/mimre25/pytest-shard"
+"Bug Tracker" = "https://github.com/mimre25/pytest-shard/issues"
+"Source Code" = "https://github.com/mimre25/pytest-shard"
 
 [project.entry-points.pytest11]
 "pytest-shard" = "pytest_shard.pytest_shard"
