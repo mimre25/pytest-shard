@@ -1,5 +1,8 @@
-[![CircleCI](https://circleci.com/gh/AdamGleave/pytest-shard.svg?style=svg)](https://circleci.com/gh/AdamGleave/pytest-shard)
-[![PyPI version](https://badge.fury.io/py/pytest-shard.svg)](https://badge.fury.io/py/pytest-shard)
+[![PyPI version](https://badge.fury.io/py/pytest-shard-fork.svg)](https://badge.fury.io/py/pytest-shard-fork)
+
+# Fork of [pytest-shard](https://github.com/AdamGleave/pytest-shard)
+
+This is a fork of `pytest-shard` that seems to be abandon - it adds some [features](#shard-by-duration).
 
 # pytest-shard
 
@@ -28,6 +31,19 @@ pytest --shard-id=${CIRCLE_NODE_INDEX} --num-shards=${CIRCLE_NODE_TOTAL}
 ```
 
 On Travis, you must define the environment variables explicitly, but can use a [similar approach](https://docs.travis-ci.com/user/speeding-up-the-build/).
+
+## Shard by duration
+
+To shard the tests based on their duration, first run all the tests and create a junitxml output:
+```sh
+$ pytest --junitxml=durations.xml
+```
+
+Then you can add `--shard-by-duration` to your pytest invocations:
+
+```sh
+$ pytest --shard-id=1 --num-shards=2 --shard-by-duration
+```
 
 ## Alternatives
 

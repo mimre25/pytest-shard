@@ -36,7 +36,7 @@ def test_sha256hash_deterministic(s):
     x = pytest_shard.sha256hash(s)
     y = pytest_shard.sha256hash(s)
     assert x == y
-    assert type(x) == int
+    assert isinstance(x, int)
 
 
 @hypothesis.given(strategies.text(), strategies.text())
@@ -56,7 +56,9 @@ def test_filter_items_by_shard(names, num_shards):
     items = [MockItem(name) for name in names]
 
     filtered = [
-        pytest_shard.filter_items_by_shard(items, shard_id=i, num_shards=num_shards)
+        pytest_shard.filter_items_by_shard(
+            items, shard_id=i, num_shards=num_shards, shard_by_duration=False
+        )
         for i in range(num_shards)
     ]
     all_filtered = list(itertools.chain(*filtered))
