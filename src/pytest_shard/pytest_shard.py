@@ -1,6 +1,7 @@
 """Shard tests to support parallelism across multiple machines."""
 
 import hashlib
+import warnings
 from typing import Iterable, List, Sequence
 import xml.etree.ElementTree as ET
 
@@ -69,21 +70,85 @@ def sha256hash(x: str) -> int:
     return int.from_bytes(hashlib.sha256(x.encode()).digest(), "little")
 
 
-def duration_shard(items: Iterable[Item], num_shards: int):
+def duration_shard(items: Iterable[Item], num_shards: int) -> List[int]:
+    # Create a mapping from test address to item for quick lookup
     item_address = [junitxml.mangle_test_address(i.nodeid) for i in items]
-    root = ET.parse("durations.xml").getroot()
-    data = []
-    for e in root.findall("*/testcase"):
-        data.append(e.attrib)
+    items_list = list(items)
 
-    for d in data:
+    # Read data from durations.xml
+    root = ET.parse("durations.xml").getroot()
+    xml_data = []
+    for e in root.findall("*/testcase"):
+        xml_data.append(e.attrib)
+
+    # Convert time to float
+    for d in xml_data:
         d["time"] = float(d["time"])
 
-    data = sorted(
-        data, key=lambda x: item_address.index([x["classname"], x["name"]])
-    )
+    # Track tests in current suite that aren't in durations.xml
+    tests_in_suite = {
+        tuple(junitxml.mangle_test_address(i.nodeid)) for i in items_list
+    }
+    tests_in_xml = {(d["classname"], d["name"]) for d in xml_data}
 
-    shard_ids = _shard_by_duration(data, num_shards)
+    # Find tests missing from either side
+    missing_from_xml = tests_in_suite - tests_in_xml
+    missing_from_suite = tests_in_xml - tests_in_suite
+
+    # Report warnings about missing tests
+    if missing_from_xml:
+        warnings.warn(
+            f"Found {len(missing_from_xml)} tests in test suite that are missing from durations.xml. "
+            f"These will be distributed in round-robin fashion."
+        )
+
+    if missing_from_suite:
+        warnings.warn(
+            f"Found {len(missing_from_suite)} tests in durations.xml that are missing from the test suite. "
+            f"These will be ignored."
+        )
+
+    # Filter data to include only tests that exist in the current test suite
+    matched_data = []
+    for d in xml_data:
+        test_key = (d["classname"], d["name"])
+        if test_key in tests_in_suite:
+            matched_data.append(d)
+
+    # Sort matched data by their position in items list
+    def get_index(item_data):
+        test_key = [item_data["classname"], item_data["name"]]
+        try:
+            return item_address.index(test_key)
+        except ValueError:
+            # This shouldn't happen since we filtered above, but just in case
+            return float("inf")
+
+    matched_data.sort(key=get_index)
+
+    # Get shard assignments for matched tests
+    shard_ids = [0] * len(items_list)
+    if matched_data:
+        duration_shard_ids = _shard_by_duration(matched_data, num_shards)
+
+        # Map duration_shard_ids back to original items
+        for i, d in enumerate(matched_data):
+            test_key = [d["classname"], d["name"]]
+            try:
+                item_idx = item_address.index(test_key)
+                shard_ids[item_idx] = duration_shard_ids[i]
+            except ValueError:
+                # Skip items that are in xml but not in test suite (shouldn't happen due to filtering)
+                pass
+
+    # Assign missing tests round-robin
+    current_shard = 0
+    for i, item in enumerate(items_list):
+        test_key = tuple(junitxml.mangle_test_address(item.nodeid))
+        if test_key in missing_from_xml:
+            shard_ids[i] = current_shard
+            current_shard = (current_shard + 1) % num_shards
+
     return shard_ids
 
 
@@ -94,12 +159,22 @@ def filter_items_by_shard(
     shard_by_duration: bool,
 ) -> Sequence[Item]:
     """Computes `items` that should be tested in `shard_id` out of `num_shards` total shards."""
+    items_list = list(items)
     if shard_by_duration:
-        shards = duration_shard(items, num_shards)
+        try:
+            shards = duration_shard(items_list, num_shards)
+        except Exception as e:
+            warnings.warn(
+                f"Error in duration sharding: {str(e)}. Falling back to hash sharding."
+            )
+            shards = [
+                sha256hash(item.nodeid) % num_shards for item in items_list
+            ]
     else:
-        shards = [sha256hash(item.nodeid) % num_shards for item in items]
+        shards = [sha256hash(item.nodeid) % num_shards for item in items_list]
+
     new_items = []
-    for shard, item in zip(shards, items):
+    for shard, item in zip(shards, items_list):
         if shard == shard_id:
             new_items.append(item)
     return new_items
